@@ -52,15 +52,11 @@
 #### 标准模式（不使用代理）
 
 ```bash
-# 克隆项目
-git clone https://github.com/TheSmallHanCat/flow2api.git
-cd flow2api
-
-# 启动服务
-docker-compose up -d
+# 在你自己的 fork 本地目录中构建并启动服务
+docker compose up -d --build
 
 # 查看日志
-docker-compose logs -f
+docker compose logs -f
 ```
 
 > 说明：Compose 已默认挂载 `./tmp:/app/tmp`。如果把缓存超时设为 `0`，语义是"不自动过期删除"；若希望容器重建后仍保留缓存文件，也需要保留这个 `tmp` 挂载。
@@ -68,11 +64,11 @@ docker-compose logs -f
 #### WARP 模式（使用代理）
 
 ```bash
-# 使用 WARP 代理启动
-docker-compose -f docker-compose.warp.yml up -d
+# 从本地代码构建应用并使用 WARP 代理启动
+docker compose -f docker-compose.proxy.yml up -d --build
 
 # 查看日志
-docker-compose -f docker-compose.warp.yml logs -f
+docker compose -f docker-compose.proxy.yml logs -f
 ```
 
 #### Docker 有头打码模式（browser / personal）

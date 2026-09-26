@@ -1,0 +1,28 @@
+services:
+  flow2api:
+    build:
+      context: .
+      dockerfile: Dockerfile.coolify
+    restart: unless-stopped
+    environment:
+      PYTHONUNBUFFERED: "1"
+    expose:
+      - "8000"
+    volumes:
+      - flow2api_data:/app/data
+      - flow2api_tmp:/app/tmp
+      - ${FLOW2API_CONFIG_FILE:?Set FLOW2API_CONFIG_FILE to the absolute path of a private setting.toml on the Docker host}:/app/config/setting.toml:ro
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).close()"
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+
+volumes:
+  flow2api_data:
+  flow2api_tmp:
