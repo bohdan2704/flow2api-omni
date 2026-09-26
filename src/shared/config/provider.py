@@ -45,6 +45,23 @@ class Config(CorsConfigMixin):
         return self._config
 
     @property
+    def secrets_from_env(self) -> bool:
+        return os.environ.get("FLOW2API_SECRETS_FROM_ENV") == "1"
+
+    def validate_env_secrets(self) -> None:
+        if not self.secrets_from_env:
+            return
+        for name in ("FLOW2API_API_KEY", "FLOW2API_ADMIN_PASSWORD"):
+            value = os.environ.get(name, "").strip()
+            if not value or value in {"admin", "han1234"}:
+                raise RuntimeError(f"{name} must be set to a non-default value")
+
+    def _env_secret(self, name: str, section: str, key: str) -> str:
+        if self.secrets_from_env:
+            return os.environ.get(name, "").strip()
+        return self._config.get(section, {}).get(key, "")
+
+    @property
     def admin_username(self) -> str:
         # If admin_username is set from database, use it; otherwise fall back to config file
         if self._admin_username is not None:
@@ -276,7 +293,7 @@ class Config(CorsConfigMixin):
     # Mutable properties for runtime updates
     @property
     def api_key(self) -> str:
-        return self._config["global"]["api_key"]
+        return self._env_secret("FLOW2API_API_KEY", "global", "api_key")
 
     @api_key.setter
     def api_key(self, value: str):
@@ -284,6 +301,8 @@ class Config(CorsConfigMixin):
 
     @property
     def admin_password(self) -> str:
+        if self.secrets_from_env:
+            return os.environ.get("FLOW2API_ADMIN_PASSWORD", "").strip()
         # If admin_password is set from database, use it; otherwise fall back to config file
         if self._admin_password is not None:
             return self._admin_password
@@ -522,7 +541,7 @@ class Config(CorsConfigMixin):
     @property
     def yescaptcha_api_key(self) -> str:
         """Get YesCaptcha API key"""
-        return self._config.get("captcha", {}).get("yescaptcha_api_key", "")
+        return self._env_secret("FLOW2API_YESCAPTCHA_API_KEY", "captcha", "yescaptcha_api_key")
 
     def set_yescaptcha_api_key(self, api_key: str):
         """Set YesCaptcha API key"""
@@ -544,7 +563,7 @@ class Config(CorsConfigMixin):
     @property
     def capmonster_api_key(self) -> str:
         """Get CapMonster API key"""
-        return self._config.get("captcha", {}).get("capmonster_api_key", "")
+        return self._env_secret("FLOW2API_CAPMONSTER_API_KEY", "captcha", "capmonster_api_key")
 
     def set_capmonster_api_key(self, api_key: str):
         """Set CapMonster API key"""
@@ -566,7 +585,7 @@ class Config(CorsConfigMixin):
     @property
     def ezcaptcha_api_key(self) -> str:
         """Get EzCaptcha API key"""
-        return self._config.get("captcha", {}).get("ezcaptcha_api_key", "")
+        return self._env_secret("FLOW2API_EZCAPTCHA_API_KEY", "captcha", "ezcaptcha_api_key")
 
     def set_ezcaptcha_api_key(self, api_key: str):
         """Set EzCaptcha API key"""
@@ -588,7 +607,7 @@ class Config(CorsConfigMixin):
     @property
     def capsolver_api_key(self) -> str:
         """Get CapSolver API key"""
-        return self._config.get("captcha", {}).get("capsolver_api_key", "")
+        return self._env_secret("FLOW2API_CAPSOLVER_API_KEY", "captcha", "capsolver_api_key")
 
     def set_capsolver_api_key(self, api_key: str):
         """Set CapSolver API key"""
@@ -621,7 +640,11 @@ class Config(CorsConfigMixin):
     @property
     def remote_browser_api_key(self) -> str:
         """Get remote browser captcha service API key"""
-        return self._config.get("captcha", {}).get("remote_browser_api_key", "")
+        return self._env_secret("FLOW2API_REMOTE_BROWSER_API_KEY", "captcha", "remote_browser_api_key")
+
+    @property
+    def plugin_connection_token(self) -> str:
+        return os.environ.get("FLOW2API_PLUGIN_CONNECTION_TOKEN", "").strip() if self.secrets_from_env else ""
 
     def set_remote_browser_api_key(self, api_key: str):
         """Set remote browser captcha service API key"""
@@ -805,6 +828,8 @@ class Config(CorsConfigMixin):
 
     @property
     def alert_webhook_url(self) -> str:
+        if self.secrets_from_env:
+            return os.environ.get("FLOW2API_ALERT_WEBHOOK_URL", "").strip()
         # 优先环境变量（密钥不进 git），回退 toml [admin] alert_webhook_url
         env = os.environ.get("FLOW2API_ALERT_WEBHOOK_URL")
         if env:

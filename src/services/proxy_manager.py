@@ -1,6 +1,8 @@
 """Proxy management module"""
 from typing import Optional
 import re
+import os
+from ..core.config import config as app_config
 from ..core.database import Database
 from ..core.models import ProxyConfig
 from ..shared.proxy_parse import parse_proxy_line
@@ -40,6 +42,8 @@ class ProxyManager:
 
     async def get_request_proxy_url(self) -> Optional[str]:
         """Get request proxy URL if enabled, otherwise return None"""
+        if app_config.secrets_from_env:
+            return self.normalize_proxy_url(os.environ.get("FLOW2API_PROXY_URL"))
         config = await self.db.get_proxy_config()
         if config and config.enabled and config.proxy_url:
             return config.proxy_url
@@ -47,6 +51,9 @@ class ProxyManager:
 
     async def get_media_proxy_url(self) -> Optional[str]:
         """Get media upload/download proxy URL, fallback to request proxy"""
+        if app_config.secrets_from_env:
+            media_url = self.normalize_proxy_url(os.environ.get("FLOW2API_MEDIA_PROXY_URL"))
+            return media_url or await self.get_request_proxy_url()
         config = await self.db.get_proxy_config()
         if config and config.media_proxy_enabled and config.media_proxy_url:
             return config.media_proxy_url
@@ -72,4 +79,9 @@ class ProxyManager:
 
     async def get_proxy_config(self) -> ProxyConfig:
         """Get proxy configuration"""
+        if app_config.secrets_from_env:
+            request_url = await self.get_request_proxy_url()
+            media_url = self.normalize_proxy_url(os.environ.get("FLOW2API_MEDIA_PROXY_URL"))
+            return ProxyConfig(enabled=bool(request_url), proxy_url=request_url,
+                               media_proxy_enabled=bool(media_url), media_proxy_url=media_url)
         return await self.db.get_proxy_config()

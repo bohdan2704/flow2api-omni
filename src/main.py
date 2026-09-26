@@ -30,7 +30,8 @@ async def lifespan(app: FastAPI):
     print("Flow2API Starting...")
     print("=" * 60)
 
-    # Get config from setting.toml
+    config.validate_env_secrets()
+    # Get non-secret configuration from setting.toml
     config_dict = config.get_raw_config()
 
     # Check if database exists (determine if first startup)
@@ -49,6 +50,7 @@ async def lifespan(app: FastAPI):
         await db.check_and_migrate_db(config_dict)
         print("✓ Database migration check completed.")
 
+    await db.clear_env_managed_secrets()
     # 启动时统一把数据库配置同步到内存，避免 personal/brower 相关运行时配置遗漏。
     await db.reload_config_to_memory()
 

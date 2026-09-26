@@ -6,17 +6,23 @@ services:
     restart: unless-stopped
     environment:
       PYTHONUNBUFFERED: "1"
+      FLOW2API_SECRETS_FROM_ENV: "1"
+      FLOW2API_API_KEY: ${FLOW2API_API_KEY:-}
+      FLOW2API_ADMIN_PASSWORD: ${FLOW2API_ADMIN_PASSWORD:-}
+      FLOW2API_YESCAPTCHA_API_KEY: ${FLOW2API_YESCAPTCHA_API_KEY:-}
+      FLOW2API_CAPMONSTER_API_KEY: ${FLOW2API_CAPMONSTER_API_KEY:-}
+      FLOW2API_EZCAPTCHA_API_KEY: ${FLOW2API_EZCAPTCHA_API_KEY:-}
+      FLOW2API_CAPSOLVER_API_KEY: ${FLOW2API_CAPSOLVER_API_KEY:-}
+      FLOW2API_REMOTE_BROWSER_API_KEY: ${FLOW2API_REMOTE_BROWSER_API_KEY:-}
+      FLOW2API_PLUGIN_CONNECTION_TOKEN: ${FLOW2API_PLUGIN_CONNECTION_TOKEN:-}
+      FLOW2API_PROXY_URL: ${FLOW2API_PROXY_URL:-}
+      FLOW2API_MEDIA_PROXY_URL: ${FLOW2API_MEDIA_PROXY_URL:-}
+      FLOW2API_ALERT_WEBHOOK_URL: ${FLOW2API_ALERT_WEBHOOK_URL:-}
     expose:
       - "8000"
     volumes:
       - flow2api_data:/app/data
       - flow2api_tmp:/app/tmp
-      - type: bind
-        source: /opt/flow2api/setting.toml
-        target: /app/config/setting.toml
-        read_only: true
-        bind:
-          create_host_path: false
     healthcheck:
       test:
         - CMD

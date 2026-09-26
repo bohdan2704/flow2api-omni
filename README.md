@@ -37,56 +37,18 @@
 
 ### 前置要求
 
-- Docker 和 Docker Compose（推荐）
+- Coolify 与 Docker（推荐的容器部署方式）
 - 或 Python 3.8+
 
-- 由于Flow增加了额外的验证码，你可以自行选择使用浏览器打码或第三发打码：
-注册[YesCaptcha](https://yescaptcha.com/i/13Xd8K)并获取api key，将其填入系统配置页面```YesCaptcha API密钥```区域
-- 默认 `docker-compose.yml` 建议搭配第三方打码（yescaptcha/capmonster/ezcaptcha/capsolver）。
-如需 Docker 内有头打码（browser/personal），请使用下方 `docker-compose.headed.yml`。
+- 当前 Coolify Compose 使用不含浏览器的镜像；生成任务需要配置第三方验证码服务（yescaptcha/capmonster/ezcaptcha/capsolver）。浏览器打码与账号浏览器保活需要另行部署，不能直接使用此 Compose 启用。
 
 - Chrome 扩展（**可选**）：[Flow2API-Token-Updater](https://github.com/TheSmallHanCat/Flow2API-Token-Updater) 可用于显式提交账号凭据，但不替代每账号浏览器保活 profile。跨域调用 `/api/plugin/update-token` 时，必须把扩展的精确 `chrome-extension://<扩展ID>` Origin 加入 CORS allowlist，并继续使用插件 connection token 的 Bearer 认证。
 
-### 方式一：Docker 部署（推荐）
+### 方式一：Coolify 部署（推荐）
 
-#### 标准模式（不使用代理）
+在 Coolify 中选择仓库根目录的 `docker-compose.coolify.yml`，在运行时环境变量中设置 `FLOW2API_API_KEY`、`FLOW2API_ADMIN_PASSWORD` 和所选第三方打码服务的 API Key，然后为 `flow2api` 配置域名。无需在宿主机上创建 TOML；镜像自带非机密的配置模板，数据库和生成的媒体由命名卷持久保存。完整步骤见 [Coolify 部署指南](docs/operations/coolify.md)。
 
-```bash
-# 在你自己的 fork 本地目录中构建并启动服务
-docker compose up -d --build
-
-# 查看日志
-docker compose logs -f
-```
-
-> 说明：Compose 已默认挂载 `./tmp:/app/tmp`。如果把缓存超时设为 `0`，语义是"不自动过期删除"；若希望容器重建后仍保留缓存文件，也需要保留这个 `tmp` 挂载。
-
-#### WARP 模式（使用代理）
-
-```bash
-# 从本地代码构建应用并使用 WARP 代理启动
-docker compose -f docker-compose.proxy.yml up -d --build
-
-# 查看日志
-docker compose -f docker-compose.proxy.yml logs -f
-```
-
-#### Docker 有头打码模式（browser / personal）
-
-> 适用于你有虚拟化桌面需求、希望在容器里启用有头浏览器打码的场景。
-> 该模式默认启动 `Xvfb + Fluxbox` 实现容器内部可视化，并设置 `ALLOW_DOCKER_HEADED_CAPTCHA=true`。
-> 仅开放应用端口，不提供任何远程桌面连接端口。
-
-```bash
-# 启动有头模式（首次建议带 --build）
-docker compose -f docker-compose.headed.yml up -d --build
-
-# 查看日志
-docker compose -f docker-compose.headed.yml logs -f
-```
-
-- API 端口：`8000`
-- 进入管理后台后，将验证码方式设为 `browser` 或 `personal`
+此 Compose 只部署 API，不包含 WARP、浏览器打码、XRDP 或 Google 账号的浏览器保活。
 
 ### 方式二：本地部署
 
@@ -113,14 +75,11 @@ python main.py
 
 ### 首次访问
 
-服务启动后,访问管理后台: **http://localhost:8000**,首次登录后请立即修改密码!
-
-- **用户名**: `admin`
-- **密码**: `admin`
+服务启动后，通过在 Coolify 中配置的域名访问管理后台。管理员用户名默认为 `admin`，密码由运行时环境变量 `FLOW2API_ADMIN_PASSWORD` 提供。
 
 ### 模型测试页面
 
-访问 **http://localhost:8000/test** 可打开内置的模型测试页面，支持：
+访问 **https://<你的域名>/test** 可打开内置的模型测试页面，支持：
 
 - 按分类浏览所有可用模型（图片生成、文/图生视频、多图视频、视频放大等）
 - 输入提示词一键测试，流式显示生成进度

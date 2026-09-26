@@ -44,7 +44,27 @@ class Database(SqliteEngine):
 
     async def _ensure_config_rows(self, db, config_dict: dict = None):
         """委托 core.schema_defaults。"""
-        await ensure_config_rows(db, config_dict)
+        from .config import config
+        await ensure_config_rows(db, config_dict, secrets_from_env=config.secrets_from_env)
+
+    async def clear_env_managed_secrets(self):
+        """Discard legacy persisted deployment secrets before serving requests."""
+        from .config import config
+        if not config.secrets_from_env:
+            return
+        async with self._connect(write=True) as db:
+            await db.execute("UPDATE admin_config SET password = '', api_key = ''")
+            await db.execute("""UPDATE captcha_config SET
+                yescaptcha_api_key = '', capmonster_api_key = '',
+                ezcaptcha_api_key = '', capsolver_api_key = '', remote_browser_api_key = '',
+                browser_proxy_url = NULL, browser_proxy_enabled = 0
+            """)
+            await db.execute("UPDATE plugin_config SET connection_token = ''")
+            await db.execute("""UPDATE proxy_config SET
+                proxy_url = NULL, media_proxy_url = NULL,
+                enabled = 0, media_proxy_enabled = 0
+            """)
+            await db.commit()
 
     async def _create_onboarding_jobs_table(self, db, table_name: str):
         """Create the approved credential-free onboarding schema."""

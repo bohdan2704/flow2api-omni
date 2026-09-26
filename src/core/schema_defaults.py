@@ -6,7 +6,7 @@ tests/characterization/test_db_config.py (via init_config_from_toml).
 """
 
 
-async def ensure_config_rows(db, config_dict: dict = None):
+async def ensure_config_rows(db, config_dict: dict = None, secrets_from_env: bool = False):
     """Ensure all config tables have their default rows
 
     Args:
@@ -19,15 +19,16 @@ async def ensure_config_rows(db, config_dict: dict = None):
     count = await cursor.fetchone()
     if count[0] == 0:
         admin_username = "admin"
-        admin_password = "admin"
-        api_key = "han1234"
+        admin_password = "" if secrets_from_env else "admin"
+        api_key = "" if secrets_from_env else "han1234"
         error_ban_threshold = 3
 
         if config_dict:
             global_config = config_dict.get("global", {})
             admin_username = global_config.get("admin_username", "admin")
-            admin_password = global_config.get("admin_password", "admin")
-            api_key = global_config.get("api_key", "han1234")
+            if not secrets_from_env:
+                admin_password = global_config.get("admin_password", "admin")
+                api_key = global_config.get("api_key", "han1234")
 
             admin_config = config_dict.get("admin", {})
             error_ban_threshold = admin_config.get("error_ban_threshold", 3)
@@ -46,7 +47,7 @@ async def ensure_config_rows(db, config_dict: dict = None):
         media_proxy_enabled = False
         media_proxy_url = None
 
-        if config_dict:
+        if config_dict and not secrets_from_env:
             proxy_config = config_dict.get("proxy", {})
             proxy_enabled = proxy_config.get("proxy_enabled", False)
             proxy_url = proxy_config.get("proxy_url", "")
@@ -164,10 +165,10 @@ async def ensure_config_rows(db, config_dict: dict = None):
         if config_dict:
             captcha_config = config_dict.get("captcha", {})
             captcha_method = captcha_config.get("captcha_method", "personal")
-            yescaptcha_api_key = captcha_config.get("yescaptcha_api_key", "")
+            yescaptcha_api_key = "" if secrets_from_env else captcha_config.get("yescaptcha_api_key", "")
             yescaptcha_base_url = captcha_config.get("yescaptcha_base_url", "https://api.yescaptcha.com")
             remote_browser_base_url = captcha_config.get("remote_browser_base_url", "")
-            remote_browser_api_key = captcha_config.get("remote_browser_api_key", "")
+            remote_browser_api_key = "" if secrets_from_env else captcha_config.get("remote_browser_api_key", "")
             remote_browser_timeout = captcha_config.get("remote_browser_timeout", 60)
             browser_count = captcha_config.get("browser_count", 1)
             personal_project_pool_size = captcha_config.get("personal_project_pool_size", 4)

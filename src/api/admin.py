@@ -605,6 +605,8 @@ async def change_password(
     token: str = Depends(verify_admin_token)
 ):
     """Change admin password"""
+    if config.secrets_from_env:
+        raise HTTPException(status_code=409, detail="Admin password is managed by environment variables")
     admin_config = await db.get_admin_config()
 
     # Verify old password
@@ -1125,14 +1127,15 @@ async def update_token_lifecycle(
 @router.get("/api/config/proxy")
 async def get_proxy_config(token: str = Depends(verify_admin_token)):
     """Get proxy configuration"""
-    config = await proxy_manager.get_proxy_config()
+    proxy_settings = await proxy_manager.get_proxy_config()
     return {
         "success": True,
         "config": {
-            "enabled": config.enabled,
-            "proxy_url": config.proxy_url,
-            "media_proxy_enabled": config.media_proxy_enabled,
-            "media_proxy_url": config.media_proxy_url
+            "enabled": proxy_settings.enabled,
+            "proxy_url": "" if config.secrets_from_env else proxy_settings.proxy_url,
+            "media_proxy_enabled": proxy_settings.media_proxy_enabled,
+            "media_proxy_url": "" if config.secrets_from_env else proxy_settings.media_proxy_url,
+            "secrets_managed_by_env": config.secrets_from_env,
         }
     }
 
@@ -1140,12 +1143,13 @@ async def get_proxy_config(token: str = Depends(verify_admin_token)):
 @router.get("/api/proxy/config")
 async def get_proxy_config_alias(token: str = Depends(verify_admin_token)):
     """Get proxy configuration (alias for frontend compatibility)"""
-    config = await proxy_manager.get_proxy_config()
+    proxy_settings = await proxy_manager.get_proxy_config()
     return {
-        "proxy_enabled": config.enabled,  # Frontend expects proxy_enabled
-        "proxy_url": config.proxy_url,
-        "media_proxy_enabled": config.media_proxy_enabled,
-        "media_proxy_url": config.media_proxy_url
+        "proxy_enabled": proxy_settings.enabled,  # Frontend expects proxy_enabled
+        "proxy_url": "" if config.secrets_from_env else proxy_settings.proxy_url,
+        "media_proxy_enabled": proxy_settings.media_proxy_enabled,
+        "media_proxy_url": "" if config.secrets_from_env else proxy_settings.media_proxy_url,
+        "secrets_managed_by_env": config.secrets_from_env,
     }
 
 
@@ -1155,6 +1159,8 @@ async def update_proxy_config_alias(
     token: str = Depends(verify_admin_token)
 ):
     """Update proxy configuration (alias for frontend compatibility)"""
+    if config.secrets_from_env:
+        raise HTTPException(status_code=409, detail="Proxy URLs are managed by environment variables")
     try:
         await proxy_manager.update_proxy_config(
             enabled=request.proxy_enabled,
@@ -1173,6 +1179,8 @@ async def update_proxy_config(
     token: str = Depends(verify_admin_token)
 ):
     """Update proxy configuration"""
+    if config.secrets_from_env:
+        raise HTTPException(status_code=409, detail="Proxy URLs are managed by environment variables")
     try:
         await proxy_manager.update_proxy_config(
             enabled=request.proxy_enabled,
@@ -1443,7 +1451,8 @@ async def get_admin_config(token: str = Depends(verify_admin_token)):
 
     return {
         "admin_username": admin_config.username,
-        "api_key": admin_config.api_key,
+        "api_key": "" if config.secrets_from_env else admin_config.api_key,
+        "secrets_managed_by_env": config.secrets_from_env,
         "error_ban_threshold": admin_config.error_ban_threshold,
         "debug_enabled": config.debug_enabled  # Return actual debug status
     }
@@ -1476,6 +1485,8 @@ async def update_api_key(
     token: str = Depends(verify_admin_token)
 ):
     """Update API key (for external API calls, NOT for admin login)"""
+    if config.secrets_from_env:
+        raise HTTPException(status_code=409, detail="API key is managed by environment variables")
     # Update API key in database
     await db.update_admin_config(api_key=request.new_api_key)
 
@@ -1650,9 +1661,16 @@ async def update_captcha_config(
     capsolver_base_url = request.get("capsolver_base_url")
     remote_browser_base_url = request.get("remote_browser_base_url")
     remote_browser_api_key = request.get("remote_browser_api_key")
+    if config.secrets_from_env:
+        yescaptcha_api_key = capmonster_api_key = ezcaptcha_api_key = None
+        capsolver_api_key = remote_browser_api_key = None
     remote_browser_timeout = request.get("remote_browser_timeout", 60)
     browser_proxy_enabled = request.get("browser_proxy_enabled", False)
     browser_proxy_url = request.get("browser_proxy_url", "")
+    if config.secrets_from_env and browser_proxy_url:
+        raise HTTPException(status_code=409, detail="Browser proxy URL cannot be stored in env-managed mode")
+    if config.secrets_from_env:
+        browser_proxy_enabled = False
     browser_count = request.get("browser_count", 1)
     personal_project_pool_size = request.get("personal_project_pool_size")
     personal_max_resident_tabs = request.get("personal_max_resident_tabs")
@@ -1681,7 +1699,7 @@ async def update_captcha_config(
     if captcha_method == "remote_browser":
         if not (remote_browser_base_url or "").strip():
             return {"success": False, "message": "remote_browser 模式需要配置远程打码服务地址"}
-        if not (remote_browser_api_key or "").strip():
+        if not ((config.remote_browser_api_key if config.secrets_from_env else remote_browser_api_key) or "").strip():
             return {"success": False, "message": "remote_browser 模式需要配置远程打码服务 API Key"}
 
     await db.update_captcha_config(
@@ -1729,19 +1747,20 @@ async def get_captcha_config(token: str = Depends(verify_admin_token)):
     captcha_config = await db.get_captcha_config()
     return {
         "captcha_method": captcha_config.captcha_method,
-        "yescaptcha_api_key": captcha_config.yescaptcha_api_key,
+        "yescaptcha_api_key": "" if config.secrets_from_env else captcha_config.yescaptcha_api_key,
         "yescaptcha_base_url": captcha_config.yescaptcha_base_url,
-        "capmonster_api_key": captcha_config.capmonster_api_key,
+        "capmonster_api_key": "" if config.secrets_from_env else captcha_config.capmonster_api_key,
         "capmonster_base_url": captcha_config.capmonster_base_url,
-        "ezcaptcha_api_key": captcha_config.ezcaptcha_api_key,
+        "ezcaptcha_api_key": "" if config.secrets_from_env else captcha_config.ezcaptcha_api_key,
         "ezcaptcha_base_url": captcha_config.ezcaptcha_base_url,
-        "capsolver_api_key": captcha_config.capsolver_api_key,
+        "capsolver_api_key": "" if config.secrets_from_env else captcha_config.capsolver_api_key,
         "capsolver_base_url": captcha_config.capsolver_base_url,
         "remote_browser_base_url": captcha_config.remote_browser_base_url,
-        "remote_browser_api_key": captcha_config.remote_browser_api_key,
+        "remote_browser_api_key": "" if config.secrets_from_env else captcha_config.remote_browser_api_key,
+        "secrets_managed_by_env": config.secrets_from_env,
         "remote_browser_timeout": captcha_config.remote_browser_timeout,
         "browser_proxy_enabled": captcha_config.browser_proxy_enabled,
-        "browser_proxy_url": captcha_config.browser_proxy_url or "",
+        "browser_proxy_url": "" if config.secrets_from_env else (captcha_config.browser_proxy_url or ""),
         "browser_count": captcha_config.browser_count,
         "personal_project_pool_size": captcha_config.personal_project_pool_size,
         "personal_max_resident_tabs": captcha_config.personal_max_resident_tabs,
@@ -1772,7 +1791,8 @@ async def get_plugin_config(request: Request, token: str = Depends(verify_admin_
     return {
         "success": True,
         "config": {
-            "connection_token": plugin_config.connection_token,
+            "connection_token": "" if config.secrets_from_env else plugin_config.connection_token,
+            "secrets_managed_by_env": config.secrets_from_env,
             "connection_url": connection_url,
             "auto_enable_on_update": plugin_config.auto_enable_on_update
         }
@@ -1789,7 +1809,9 @@ async def update_plugin_config(
     auto_enable_on_update = request.get("auto_enable_on_update", True)  # 默认开启
 
     # Generate random token if empty
-    if not connection_token:
+    if config.secrets_from_env:
+        connection_token = ""
+    elif not connection_token:
         connection_token = secrets.token_urlsafe(32)
 
     await db.update_plugin_config(
@@ -1820,7 +1842,8 @@ async def plugin_update_token(request: dict, authorization: Optional[str] = Head
             provided_token = authorization
 
     # Check if token matches
-    if not plugin_config.connection_token or provided_token != plugin_config.connection_token:
+    expected_token = config.plugin_connection_token if config.secrets_from_env else plugin_config.connection_token
+    if not expected_token or provided_token != expected_token:
         raise HTTPException(status_code=401, detail="Invalid connection token")
 
     # Extract session token from request
