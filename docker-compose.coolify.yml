@@ -11,7 +11,12 @@ services:
     volumes:
       - flow2api_data:/app/data
       - flow2api_tmp:/app/tmp
-      - ${FLOW2API_CONFIG_FILE:?Set FLOW2API_CONFIG_FILE to the absolute path of a private setting.toml on the Docker host}:/app/config/setting.toml:ro
+      - type: bind
+        source: /opt/flow2api/setting.toml
+        target: /app/config/setting.toml
+        read_only: true
+        bind:
+          create_host_path: false
     healthcheck:
       test:
         - CMD

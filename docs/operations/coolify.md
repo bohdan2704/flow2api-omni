@@ -2,9 +2,9 @@
 
 Використовуйте `docker-compose.coolify.yml` як Docker Compose файл ресурсу з Git-репозиторію. Цей варіант запускає **API**, зберігає SQLite у томі `flow2api_data`, а згенеровані медіафайли у `flow2api_tmp`. Він не публікує порт безпосередньо на хості: налаштуйте домен для сервісу `flow2api` у Coolify з внутрішнім портом `8000`.
 
-1. На Docker-хості створіть приватну копію `config/setting_example.toml` поза Git, наприклад `/opt/flow2api/setting.toml`. Файл має існувати **до** першого запуску і бути доступним для читання контейнеру. `Dockerfile.coolify` не копіює `config/setting.toml` із репозиторію в образ.
+1. На Docker-хості створіть приватну копію `config/setting_example.toml` поза Git саме за шляхом `/opt/flow2api/setting.toml`. Файл має існувати **до** першого запуску і бути доступним для читання контейнеру. Compose не створює порожній файл автоматично; `Dockerfile.coolify` не копіює `config/setting.toml` із репозиторію в образ.
 2. Перед публікацією домену замініть `[global].api_key` і `admin_password` на довгі унікальні значення. Встановіть `[server].host = "0.0.0.0"` та `[server].port = 8000`. Для цього образу оберіть сторонній captcha-сервіс у `[captcha].captcha_method` (наприклад, `yescaptcha`) і налаштуйте його ключ. Режими `browser` і `personal` потребують окремого образу з браузером.
-3. У Coolify задайте змінну `FLOW2API_CONFIG_FILE=/opt/flow2api/setting.toml` та виберіть `docker-compose.coolify.yml`. Перевірка стану: `GET /health` повертає `backend_running: true`. Поле `has_active_tokens` залишатиметься `false`, доки не додасте придатні акаунти.
+3. У Coolify виберіть `docker-compose.coolify.yml` і зробіть Reload Compose після того, як файл із Git оновиться. Змінна `FLOW2API_CONFIG_FILE` більше не потрібна. Перевірка стану: `GET /health` повертає `backend_running: true`. Поле `has_active_tokens` залишатиметься `false`, доки не додасте придатні акаунти.
 
 Не масштабуйте цей сервіс на кілька реплік з однією SQLite-базою. Файл конфігурації використовується для початкового заповнення БД: після першого запуску ключ і пароль можуть читатися з БД, тому подальша зміна лише `setting.toml` їх не змінить. Змінюйте їх через адмінку й регулярно резервуйте том `flow2api_data`.
 
